@@ -1,0 +1,10 @@
+venv/
+build/
+dist/
+__pycache__/
+*.pyc
+release/
+app/license_secret.py
+*.exe
+gumroad_package/
+gumroad_package_VidGrab.zip

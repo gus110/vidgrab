@@ -1,0 +1,29 @@
+.vidgrab-btn-wrapper {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 9999;
+}
+
+.vidgrab-download-btn {
+  background: linear-gradient(135deg, #6C5CE7, #8B7CF6);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: "Segoe UI", Arial, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vidgrab-download-btn:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 16px rgba(108, 92, 231, 0.6);
+}
+
+.vidgrab-download-btn:active {
+  transform: translateY(0) scale(0.98);
+}

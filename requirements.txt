@@ -1,0 +1,7 @@
+customtkinter>=5.2.2
+yt-dlp>=2024.8.6
+Pillow>=10.4.0
+flask>=3.0.3
+flask-cors>=4.0.1
+requests>=2.32.3
+pystray>=0.19.5
