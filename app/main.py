@@ -307,7 +307,17 @@ class VidGrabApp(ctk.CTk):
         self.quota_label.configure(text=f"{remaining}/{FREE_DAILY_LIMIT} free downloads today")
 
     def _open_upgrade_dialog(self, limit_reached: bool = False):
-        UpgradeDialog(self, self.cfg, on_activated=self._on_pro_activated, limit_reached=limit_reached)
+        # Evita abrir varias ventanas de "Hazte Pro" apiladas cuando llegan
+        # muchas descargas de golpe (ej. lote desde la extensión) y todas
+        # chocan contra el límite diario al mismo tiempo.
+        existing = getattr(self, "_upgrade_dialog", None)
+        if existing is not None and existing.winfo_exists():
+            existing.lift()
+            existing.focus_force()
+            return
+
+        dialog = UpgradeDialog(self, self.cfg, on_activated=self._on_pro_activated, limit_reached=limit_reached)
+        self._upgrade_dialog = dialog
 
     def _on_pro_activated(self):
         self.cfg["is_pro"] = True
@@ -411,8 +421,9 @@ class UpgradeDialog(ctk.CTkToplevel):
     def __init__(self, master, cfg: dict, on_activated, limit_reached: bool = False):
         super().__init__(master)
         self.title("VidGrab Pro")
-        self.geometry("420x420")
-        self.resizable(False, False)
+        self.geometry("440x560")
+        self.minsize(440, 560)
+        self.resizable(False, True)
         self.configure(fg_color=BG_MAIN)
         self.cfg = cfg
         self.on_activated = on_activated
