@@ -154,7 +154,9 @@ class VidGrabApp(ctk.CTk):
         self.minsize(640, 480)
         self.configure(fg_color=BG_MAIN)
 
-        self.manager = DownloadManager(self.cfg["download_dir"], self.cfg["quality"])
+        self.manager = DownloadManager(
+            self.cfg["download_dir"], self.cfg["quality"], self.cfg.get("sharpen", False)
+        )
         self.rows: dict[str, JobRow] = {}
 
         self._build_ui()
@@ -230,6 +232,14 @@ class VidGrabApp(ctk.CTk):
             button_color="#3A3A4E", command=self._on_quality_change,
         )
         quality_menu.pack(side="left", padx=8)
+
+        self.sharpen_var = ctk.BooleanVar(value=self.cfg.get("sharpen", False))
+        sharpen_check = ctk.CTkCheckBox(
+            options_frame, text="✨ Sharpen video", variable=self.sharpen_var,
+            fg_color=ACCENT, hover_color=ACCENT_HOVER, font=("Segoe UI", 11),
+            command=self._on_sharpen_change,
+        )
+        sharpen_check.pack(side="left", padx=(12, 0))
 
         info_label = ctk.CTkLabel(
             options_frame,
@@ -339,6 +349,12 @@ class VidGrabApp(ctk.CTk):
     def _on_quality_change(self, value):
         self.cfg["quality"] = value
         self.manager.set_quality(value)
+        save_config(self.cfg)
+
+    def _on_sharpen_change(self):
+        enabled = self.sharpen_var.get()
+        self.cfg["sharpen"] = enabled
+        self.manager.set_sharpen(enabled)
         save_config(self.cfg)
 
     def _poll_extension_queue(self):

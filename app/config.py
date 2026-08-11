@@ -26,6 +26,7 @@ DEFAULTS = {
     "is_pro": False,
     "daily_count": 0,
     "daily_date": "",           # fecha (YYYY-MM-DD) del contador actual
+    "sharpen": False,           # aplica un filtro de nitidez tras descargar
 }
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import subprocess
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -63,9 +64,10 @@ class DownloadJob:
 class DownloadManager:
     """Gestiona la cola de descargas en hilos separados para no bloquear la UI."""
 
-    def __init__(self, download_dir: str, quality: str = "best"):
+    def __init__(self, download_dir: str, quality: str = "best", sharpen: bool = False):
         self.download_dir = download_dir
         self.quality = quality
+        self.sharpen = sharpen
         self.jobs: dict[str, DownloadJob] = {}
         self._lock = threading.Lock()
 
@@ -74,6 +76,9 @@ class DownloadManager:
 
     def set_quality(self, quality: str):
         self.quality = quality
+
+    def set_sharpen(self, enabled: bool):
+        self.sharpen = enabled
 
     def _format_selector(self) -> str:
         mapping = {
@@ -152,6 +157,14 @@ class DownloadManager:
                 job.filepath = ydl.prepare_filename(info)
                 job.status = "completado"
                 job.progress = 1.0
+
+            if self.sharpen and self.quality != "audio" and job.filepath:
+                job.status = "descargando"
+                job.speed = "sharpening..."
+                on_update(job)
+                _apply_sharpen_filter(job.filepath)
+                job.status = "completado"
+                job.speed = ""
         except Exception as exc:  # noqa: BLE001
             job.status = "error"
             job.error = _friendly_error(str(exc))
@@ -164,6 +177,40 @@ class DownloadManager:
 
 def job_quality_is_video(quality: str) -> bool:
     return quality != "audio"
+
+
+def _apply_sharpen_filter(filepath: str) -> None:
+    """Pasa el video ya descargado por un filtro de nitidez de FFmpeg
+    (unsharp) y reemplaza el archivo original. Si algo falla (FFmpeg no
+    disponible, formato no soportado), deja el archivo original intacto
+    en vez de romper la descarga."""
+    if not FFMPEG_LOCATION:
+        return
+    src = Path(filepath)
+    if not src.exists():
+        return
+
+    ffmpeg_exe = str(Path(FFMPEG_LOCATION) / "ffmpeg.exe")
+    tmp_out = src.with_name(src.stem + "_sharpened" + src.suffix)
+
+    cmd = [
+        ffmpeg_exe, "-y", "-i", str(src),
+        "-vf", "unsharp=5:5:0.8:5:5:0.4",
+        "-c:a", "copy",
+        str(tmp_out),
+    ]
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, timeout=300,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
+        if result.returncode == 0 and tmp_out.exists() and tmp_out.stat().st_size > 0:
+            src.unlink()
+            tmp_out.rename(src)
+        else:
+            tmp_out.unlink(missing_ok=True)
+    except Exception:
+        tmp_out.unlink(missing_ok=True)
 
 
 def _human_speed(speed_bytes) -> str:
