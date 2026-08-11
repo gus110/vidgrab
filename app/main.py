@@ -46,9 +46,10 @@ class JobRow(ctk.CTkFrame):
 
     THUMB_SIZE = (56, 56)
 
-    def __init__(self, master, job: DownloadJob, **kwargs):
+    def __init__(self, master, job: DownloadJob, on_retry=None, **kwargs):
         super().__init__(master, fg_color=BG_CARD, corner_radius=10, **kwargs)
         self.job = job
+        self.on_retry = on_retry
         self._thumb_loaded_url = None
 
         self.grid_columnconfigure(1, weight=1)
@@ -81,6 +82,13 @@ class JobRow(ctk.CTkFrame):
             hover_color="#2A2A3C", command=self._on_action,
         )
         self.action_btn.grid(row=0, column=3, rowspan=2, padx=(0, 12))
+        # botón de texto "Retry" para errores — el emoji solo (↻) era poco
+        # visible para saber que se podía reintentar la descarga
+        self.retry_btn = ctk.CTkButton(
+            self, text="↻ Retry", width=70, height=28, fg_color="#3A3A4E",
+            hover_color="#4A4A5E", text_color=ACCENT, font=("Segoe UI", 11, "bold"),
+            command=self._on_action,
+        )
 
     def _on_action(self):
         if self.job.status == "completado" and self.job.filepath:
@@ -89,6 +97,8 @@ class JobRow(ctk.CTkFrame):
                 subprocess.Popen(f'explorer /select,"{self.job.filepath}"')
             else:
                 webbrowser.open(folder)
+        elif self.job.status == "error" and self.on_retry:
+            self.on_retry(self.job.url)
 
     def update_view(self, job: DownloadJob):
         self.job = job
@@ -97,6 +107,13 @@ class JobRow(ctk.CTkFrame):
         if job.title:
             self.title_lbl.configure(text=job.title)
         source = job.uploader or job.platform
+
+        if job.status == "error":
+            self.retry_btn.grid(row=0, column=3, rowspan=2, padx=(0, 12))
+            self.action_btn.grid_forget()
+        else:
+            self.action_btn.grid(row=0, column=3, rowspan=2, padx=(0, 12))
+            self.retry_btn.grid_forget()
 
         if job.status == "en cola":
             self.status_lbl.configure(text=f"{source} · queued", text_color=TEXT_MUTED)
@@ -114,7 +131,6 @@ class JobRow(ctk.CTkFrame):
             self.action_btn.configure(text="📂")
         elif job.status == "error":
             self.status_lbl.configure(text=f"{source} · ❌ {job.error}", text_color=ERROR)
-            self.action_btn.configure(text="⚠")
 
         self._maybe_load_thumbnail()
 
@@ -286,7 +302,7 @@ class VidGrabApp(ctk.CTk):
 
         job_id = self.manager.enqueue(url, self._on_job_update)
         job = self.manager.get_job(job_id)
-        row = JobRow(self.scroll_frame, job)
+        row = JobRow(self.scroll_frame, job, on_retry=self._start_download)
         row.pack(fill="x", pady=4)
         self.rows[job_id] = row
 
