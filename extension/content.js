@@ -34,17 +34,32 @@ function currentPageUrl() {
 }
 
 /**
+ * Encuentra el contenedor visual de la publicación que envuelve un <video>,
+ * ya sea en Instagram (<article>) o TikTok (tarjetas con data-e2e / clases
+ * DivItemContainer). Se usa tanto para hallar el link del post como para
+ * anclar el botón flotante — antes cada uso tenía su propia lógica
+ * (una de ellas solo funcionaba en Instagram), por eso el botón no
+ * aparecía en TikTok.
+ */
+function findContainerForVideo(videoEl) {
+  return (
+    videoEl.closest("article") ||
+    videoEl.closest("div[data-e2e='recommend-list-item-container']") ||
+    videoEl.closest("div[data-e2e]") ||
+    videoEl.closest("[class*='DivItemContainer']") ||
+    videoEl.closest("[class*='DivContainer']") ||
+    videoEl.parentElement
+  );
+}
+
+/**
  * Busca el enlace de publicación (post/reel) más cercano a un elemento <video>,
  * ya sea subiendo por sus ancestros o revisando los <a> dentro del mismo contenedor.
  * Si no encuentra ninguno específico, usa la URL de la página actual (caso de
  * estar ya dentro de un solo video/reel abierto).
  */
 function findPostUrlForVideo(videoEl) {
-  const container =
-    videoEl.closest("article") ||
-    videoEl.closest("[class*='DivItemContainer']") ||
-    videoEl.closest("div[data-e2e]") ||
-    videoEl.parentElement;
+  const container = findContainerForVideo(videoEl);
 
   if (container) {
     const links = container.querySelectorAll("a[href]");
@@ -120,7 +135,7 @@ function createButton(targetVideo) {
   targetVideo.dataset.vidgrabAttached = "true";
 
   const postUrl = findPostUrlForVideo(targetVideo);
-  const container = targetVideo.closest("article") || targetVideo.parentElement;
+  const container = findContainerForVideo(targetVideo);
   registerVideo(postUrl, findThumbnailIn(container, targetVideo), findTitleIn(container, postUrl));
 
   const btn = document.createElement("button");
@@ -143,14 +158,38 @@ function createButton(targetVideo) {
     });
   });
 
+  // El botón se posiciona con position:fixed anclado a la posición real del
+  // <video> en pantalla (en vez de insertarlo dentro de la tarjeta del post).
+  // Esto evita que quede oculto/recortado por contenedores con overflow
+  // hidden o layouts distintos entre Instagram y TikTok.
   const wrapper = document.createElement("div");
-  wrapper.className = "vidgrab-btn-wrapper";
+  wrapper.className = "vidgrab-btn-wrapper vidgrab-fixed";
   wrapper.appendChild(btn);
+  document.body.appendChild(wrapper);
 
-  if (container) {
-    container.style.position = container.style.position || "relative";
-    container.appendChild(wrapper);
-  }
+  const reposition = () => {
+    const rect = targetVideo.getBoundingClientRect();
+    const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+    if (!visible) {
+      wrapper.style.display = "none";
+      return;
+    }
+    wrapper.style.display = "block";
+    wrapper.style.top = `${rect.top + 12}px`;
+    wrapper.style.left = `${Math.max(8, rect.right - wrapper.offsetWidth - 12)}px`;
+  };
+
+  reposition();
+  window.addEventListener("scroll", reposition, true);
+  window.addEventListener("resize", reposition);
+  const repositionInterval = setInterval(() => {
+    if (!document.body.contains(targetVideo)) {
+      clearInterval(repositionInterval);
+      wrapper.remove();
+      return;
+    }
+    reposition();
+  }, 400);
 }
 
 function scanForVideos() {

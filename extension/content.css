@@ -5,6 +5,14 @@
   z-index: 9999;
 }
 
+.vidgrab-btn-wrapper.vidgrab-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: auto;
+  z-index: 2147483647;
+}
+
 .vidgrab-download-btn {
   background: linear-gradient(135deg, #6C5CE7, #8B7CF6);
   color: #fff;
