@@ -27,13 +27,21 @@ function normalizeFacebookUrl(href) {
   try {
     const u = new URL(href, window.location.origin);
     if (u.hostname.includes("fb.watch")) return u.href;
-    // /watch/?v=123..., /reel/123..., /<user>/videos/123...
+
+    // /watch/?v=123, o cualquier link con ?v= (a veces viene en la home "/")
     const watchId = u.searchParams.get("v");
-    if (u.pathname.startsWith("/watch") && watchId) {
-      return `https://www.facebook.com/watch/?v=${watchId}`;
+    if (watchId) return `https://www.facebook.com/watch/?v=${watchId}`;
+
+    // /permalink.php?story_fbid=X&id=Y  ó  /story.php?story_fbid=X&id=Y
+    const storyFbid = u.searchParams.get("story_fbid");
+    const ownerId = u.searchParams.get("id");
+    if (storyFbid && ownerId) {
+      return `https://www.facebook.com/permalink.php?story_fbid=${storyFbid}&id=${ownerId}`;
     }
-    const match = u.pathname.match(/\/(videos|reel)\/(\d+)/);
-    if (match) return `https://www.facebook.com${match[0]}`;
+
+    // /<user>/videos/<id>/, /videos/<id>/, /reel/<id>/
+    const match = u.pathname.match(/\/(videos|reel)\/([^/?]+)/);
+    if (match) return `https://www.facebook.com${match[0]}/`;
   } catch (e) {}
   return null;
 }
