@@ -186,6 +186,11 @@ function createButton(targetVideo) {
     if (!document.body.contains(targetVideo)) {
       clearInterval(repositionInterval);
       wrapper.remove();
+      // TikTok reutiliza/recicla el mismo <video> al desplazarse entre
+      // clips: si este nodo desaparece del DOM (aunque sea temporalmente),
+      // liberamos la marca "ya tiene botón" para que, si vuelve a
+      // aparecer (mismo nodo u otro), el próximo escaneo le cree uno nuevo.
+      delete targetVideo.dataset.vidgrabAttached;
       return;
     }
     reposition();
