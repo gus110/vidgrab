@@ -13,7 +13,10 @@ from typing import Callable, Optional
 
 import yt_dlp
 
-SUPPORTED_DOMAINS = ("instagram.com", "tiktok.com", "vm.tiktok.com", "vt.tiktok.com")
+SUPPORTED_DOMAINS = (
+    "instagram.com", "tiktok.com", "vm.tiktok.com", "vt.tiktok.com",
+    "facebook.com", "fb.watch",
+)
 
 
 def _find_ffmpeg() -> str | None:
@@ -42,7 +45,9 @@ def detect_platform(url: str) -> str:
         return "TikTok"
     if "instagram" in url:
         return "Instagram"
-    return "Desconocido"
+    if "facebook" in url or "fb.watch" in url:
+        return "Facebook"
+    return "Unknown"
 
 
 @dataclass

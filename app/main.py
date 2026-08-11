@@ -54,7 +54,7 @@ class JobRow(ctk.CTkFrame):
 
         self.grid_columnconfigure(1, weight=1)
 
-        badge = "🎵" if job.platform == "TikTok" else ("📷" if job.platform == "Instagram" else "🎬")
+        badge = {"TikTok": "🎵", "Instagram": "📷", "Facebook": "👍"}.get(job.platform, "🎬")
         self.icon_lbl = ctk.CTkLabel(
             self, text=badge, font=("Segoe UI", 22), width=self.THUMB_SIZE[0],
             height=self.THUMB_SIZE[1], fg_color="#26263A", corner_radius=8,
@@ -165,7 +165,7 @@ class VidGrabApp(ctk.CTk):
         self.cfg = load_config()
         self.history = load_history()
 
-        self.title(f"{APP_NAME} — Instagram & TikTok Downloader")
+        self.title(f"{APP_NAME} — Instagram, TikTok & Facebook Downloader")
         self.geometry("760x620")
         self.minsize(640, 480)
         self.configure(fg_color=BG_MAIN)
@@ -223,7 +223,7 @@ class VidGrabApp(ctk.CTk):
         input_frame.pack(fill="x", padx=24, pady=10)
 
         self.url_entry = ctk.CTkEntry(
-            input_frame, placeholder_text="Paste Instagram or TikTok link here...",
+            input_frame, placeholder_text="Paste Instagram, TikTok, or Facebook link here...",
             height=44, font=("Segoe UI", 13), fg_color="#26263A", border_width=0,
         )
         self.url_entry.pack(side="left", fill="x", expand=True, padx=(12, 8), pady=12)
@@ -286,7 +286,7 @@ class VidGrabApp(ctk.CTk):
             return
         if not is_supported_url(url):
             messagebox.showwarning(
-                APP_NAME, "That link doesn't look like Instagram or TikTok."
+                APP_NAME, "That link doesn't look like Instagram, TikTok, or Facebook."
             )
             return
         self.url_entry.delete(0, "end")

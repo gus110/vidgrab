@@ -23,9 +23,27 @@ function normalizeTiktokUrl(href) {
   return null;
 }
 
+function normalizeFacebookUrl(href) {
+  try {
+    const u = new URL(href, window.location.origin);
+    if (u.hostname.includes("fb.watch")) return u.href;
+    // /watch/?v=123..., /reel/123..., /<user>/videos/123...
+    const watchId = u.searchParams.get("v");
+    if (u.pathname.startsWith("/watch") && watchId) {
+      return `https://www.facebook.com/watch/?v=${watchId}`;
+    }
+    const match = u.pathname.match(/\/(videos|reel)\/(\d+)/);
+    if (match) return `https://www.facebook.com${match[0]}`;
+  } catch (e) {}
+  return null;
+}
+
 function normalizeUrl(href) {
   if (window.location.hostname.includes("instagram.com")) return normalizeInstagramUrl(href);
   if (window.location.hostname.includes("tiktok.com")) return normalizeTiktokUrl(href);
+  if (window.location.hostname.includes("facebook.com") || window.location.hostname.includes("fb.watch")) {
+    return normalizeFacebookUrl(href);
+  }
   return null;
 }
 
@@ -120,7 +138,9 @@ function findTitleIn(container, url) {
 
 function registerVideo(url, thumbnail, title) {
   if (!url) return;
-  const platform = url.includes("tiktok.com") ? "TikTok" : "Instagram";
+  let platform = "Instagram";
+  if (url.includes("tiktok.com")) platform = "TikTok";
+  else if (url.includes("facebook.com") || url.includes("fb.watch")) platform = "Facebook";
   const existing = detectedVideos.get(url);
   detectedVideos.set(url, {
     url,
@@ -208,10 +228,12 @@ function scanForVideos() {
  * ícono de reproducción. Las detectamos igual para poder listarlas.
  */
 function scanForVideoLinks() {
-  const selectors =
-    window.location.hostname.includes("tiktok.com")
-      ? "a[href*='/video/']"
-      : "a[href*='/reel/'], a[href*='/p/']";
+  let selectors = "a[href*='/reel/'], a[href*='/p/']"; // Instagram default
+  if (window.location.hostname.includes("tiktok.com")) {
+    selectors = "a[href*='/video/']";
+  } else if (window.location.hostname.includes("facebook.com") || window.location.hostname.includes("fb.watch")) {
+    selectors = "a[href*='/videos/'], a[href*='/watch/'], a[href*='/watch?'], a[href*='/reel/']";
+  }
 
   document.querySelectorAll(selectors).forEach((a) => {
     const normalized = normalizeUrl(a.href);
