@@ -229,6 +229,35 @@ scanForVideos();
 // perezosamente al hacer scroll, y a veces sin disparar MutationObserver a tiempo.
 setInterval(scanForVideos, 2000);
 
+/**
+ * TikTok e Instagram son SPAs: navegar "atrás" o entre secciones casi nunca
+ * recarga la página completa, solo cambia la URL con la History API. Eso
+ * puede reutilizar/ocultar y volver a mostrar nodos <video> de formas que
+ * el MutationObserver no detecta como "nuevos". Para no depender solo del
+ * intervalo de 2s, forzamos un reescaneo inmediato cada vez que la URL
+ * cambia, interceptando pushState/replaceState y el evento popstate
+ * (botón atrás/adelante del navegador).
+ */
+let lastUrl = location.href;
+function onPossibleNavigation() {
+  if (location.href !== lastUrl) {
+    lastUrl = location.href;
+    setTimeout(scanForVideos, 300);
+    setTimeout(scanForVideos, 1000);
+  }
+}
+const _pushState = history.pushState;
+history.pushState = function (...args) {
+  _pushState.apply(this, args);
+  onPossibleNavigation();
+};
+const _replaceState = history.replaceState;
+history.replaceState = function (...args) {
+  _replaceState.apply(this, args);
+  onPossibleNavigation();
+};
+window.addEventListener("popstate", onPossibleNavigation);
+
 // Responde a la extensión (popup) cuando pide la lista de videos detectados
 // en la página actual.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
