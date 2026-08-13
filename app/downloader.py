@@ -180,13 +180,20 @@ class DownloadManager:
             # descargador nativo, que en Amazon solo bajaba el índice
             # .m3u8 sin los fragmentos de video reales.
             ydl_opts["hls_prefer_native"] = False
-        if job.platform == "YouTube" and self.youtube_cookies_file and Path(self.youtube_cookies_file).exists():
-            # YouTube exige verificar que no eres un bot para la mayoría de
-            # videos; sin cookies de una sesión real, casi todas las
-            # descargas fallan. Se usa un cookies.txt exportado a mano
-            # (más confiable en Windows que leer la base de datos viva del
-            # navegador, que suele estar bloqueada mientras Chrome corre).
-            ydl_opts["cookiefile"] = self.youtube_cookies_file
+        if job.platform == "YouTube":
+            has_cookies = bool(self.youtube_cookies_file) and Path(self.youtube_cookies_file).exists()
+            if has_cookies:
+                # Necesario para videos privados/con restricción de edad,
+                # o cuando YouTube pide verificar que no eres un bot.
+                ydl_opts["cookiefile"] = self.youtube_cookies_file
+            # El cliente "android" evita el desafío de JavaScript que
+            # YouTube exige para desbloquear formatos en el cliente web
+            # normal (yt-dlp no trae un runtime de JS embebido). No admite
+            # cookies, así que solo se usa cuando no hay cookies cargadas;
+            # con cookies, se deja el cliente web normal (necesario para
+            # contenido que exige sesión).
+            if not has_cookies:
+                ydl_opts["extractor_args"] = {"youtube": {"player_client": ["android"]}}
         if FFMPEG_LOCATION:
             ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
         if self.quality == "audio":
