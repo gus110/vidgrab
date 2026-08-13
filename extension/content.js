@@ -220,15 +220,46 @@ function createFixedButton(anchorEl, resolveUrl) {
     e.preventDefault();
     e.stopPropagation();
     const url = resolveUrl();
-    btn.innerText = "Sending...";
-    chrome.runtime.sendMessage({ type: "SEND_URL", url }, (response) => {
-      if (response && response.ok) {
-        btn.innerText = "✅ Sent";
-      } else {
-        btn.innerText = "⚠ Open VidGrab";
-      }
+    if (!url) {
+      btn.innerText = "⚠ No link found";
       setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2000);
-    });
+      return;
+    }
+    btn.innerText = "Sending...";
+
+    // Si la extensión se recargó (chrome://extensions) mientras esta
+    // pestaña seguía abierta, el canal de mensajes queda roto y
+    // sendMessage lanza "Extension context invalidated" de forma
+    // SÍNCRONA — sin este try/catch, el botón se quedaba congelado en
+    // "Sending..." para siempre, sin ningún aviso de qué pasó.
+    let responded = false;
+    try {
+      chrome.runtime.sendMessage({ type: "SEND_URL", url }, (response) => {
+        responded = true;
+        if (chrome.runtime.lastError) {
+          btn.innerText = "⚠ Reload page";
+          setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2500);
+          return;
+        }
+        if (response && response.ok) {
+          btn.innerText = "✅ Sent";
+        } else {
+          btn.innerText = "⚠ Open VidGrab";
+        }
+        setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2000);
+      });
+    } catch (err) {
+      btn.innerText = "⚠ Reload page";
+      setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2500);
+      return;
+    }
+
+    // Salvaguarda adicional: si por algún motivo el callback nunca llega
+    // (puerto cerrado sin error explícito), no dejar el botón colgado
+    // más de unos segundos.
+    setTimeout(() => {
+      if (!responded) btn.innerText = "⚠ Reload page";
+    }, 6000);
   });
 
   const wrapper = document.createElement("div");

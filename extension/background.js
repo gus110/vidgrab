@@ -24,11 +24,15 @@ async function isAppRunning() {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "SEND_URL") {
-    sendToApp(message.url).then((ok) => sendResponse({ ok }));
+    sendToApp(message.url)
+      .then((ok) => sendResponse({ ok }))
+      .catch(() => sendResponse({ ok: false }));
     return true; // async
   }
   if (message.type === "CHECK_APP") {
-    isAppRunning().then((ok) => sendResponse({ ok }));
+    isAppRunning()
+      .then((ok) => sendResponse({ ok }))
+      .catch(() => sendResponse({ ok: false }));
     return true;
   }
 });
