@@ -170,14 +170,14 @@ function registerVideo(url, thumbnail, title) {
   });
 }
 
-function createButton(targetVideo) {
-  if (targetVideo.dataset.vidgrabAttached) return;
-  targetVideo.dataset.vidgrabAttached = "true";
-
-  const postUrl = findPostUrlForVideo(targetVideo);
-  const container = findContainerForVideo(targetVideo);
-  registerVideo(postUrl, findThumbnailIn(container, targetVideo), findTitleIn(container, postUrl));
-
+/**
+ * Crea el botón flotante "⬇ VidGrab" anclado (position:fixed) sobre la
+ * posición real en pantalla de `anchorEl`. Se reutiliza tanto para <video>
+ * (Instagram/TikTok/Facebook) como para miniaturas estáticas sin <video>
+ * montado (tarjetas de tienda de Amazon) — `resolveUrl` es una función que
+ * devuelve la URL a enviar, evaluada en el momento del clic.
+ */
+function createFixedButton(anchorEl, resolveUrl) {
   const btn = document.createElement("button");
   btn.className = "vidgrab-download-btn";
   btn.innerText = "⬇ VidGrab";
@@ -186,7 +186,7 @@ function createButton(targetVideo) {
   btn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const url = findPostUrlForVideo(targetVideo);
+    const url = resolveUrl();
     btn.innerText = "Sending...";
     chrome.runtime.sendMessage({ type: "SEND_URL", url }, (response) => {
       if (response && response.ok) {
@@ -198,17 +198,13 @@ function createButton(targetVideo) {
     });
   });
 
-  // El botón se posiciona con position:fixed anclado a la posición real del
-  // <video> en pantalla (en vez de insertarlo dentro de la tarjeta del post).
-  // Esto evita que quede oculto/recortado por contenedores con overflow
-  // hidden o layouts distintos entre Instagram y TikTok.
   const wrapper = document.createElement("div");
   wrapper.className = "vidgrab-btn-wrapper vidgrab-fixed";
   wrapper.appendChild(btn);
   document.body.appendChild(wrapper);
 
   const reposition = () => {
-    const rect = targetVideo.getBoundingClientRect();
+    const rect = anchorEl.getBoundingClientRect();
     const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
     if (!visible) {
       wrapper.style.display = "none";
@@ -223,18 +219,29 @@ function createButton(targetVideo) {
   window.addEventListener("scroll", reposition, true);
   window.addEventListener("resize", reposition);
   const repositionInterval = setInterval(() => {
-    if (!document.body.contains(targetVideo)) {
+    if (!document.body.contains(anchorEl)) {
       clearInterval(repositionInterval);
       wrapper.remove();
       // TikTok reutiliza/recicla el mismo <video> al desplazarse entre
       // clips: si este nodo desaparece del DOM (aunque sea temporalmente),
       // liberamos la marca "ya tiene botón" para que, si vuelve a
       // aparecer (mismo nodo u otro), el próximo escaneo le cree uno nuevo.
-      delete targetVideo.dataset.vidgrabAttached;
+      delete anchorEl.dataset.vidgrabAttached;
       return;
     }
     reposition();
   }, 400);
+}
+
+function createButton(targetVideo) {
+  if (targetVideo.dataset.vidgrabAttached) return;
+  targetVideo.dataset.vidgrabAttached = "true";
+
+  const postUrl = findPostUrlForVideo(targetVideo);
+  const container = findContainerForVideo(targetVideo);
+  registerVideo(postUrl, findThumbnailIn(container, targetVideo), findTitleIn(container, postUrl));
+
+  createFixedButton(targetVideo, () => findPostUrlForVideo(targetVideo));
 }
 
 function scanForVideos() {
@@ -248,21 +255,36 @@ function scanForVideos() {
  * muestran decenas de videos en cuadrícula, pero casi ninguno tiene un
  * <video> montado hasta que se reproduce (carga perezosa) ni un enlace
  * de página individual — solo existe un link directo al stream HLS,
- * embebido en el HTML de la página. Los detectamos ahí directamente.
- * No se puede emparejar cada uno con su miniatura exacta de forma
- * confiable (Amazon no expone esa relación en el marcado), así que se
- * listan de forma genérica.
+ * embebido en el HTML de la página.
+ *
+ * Cada tarjeta SÍ tiene su miniatura estática con la clase
+ * "video-item-hero-thumbnail-container" — se asume que aparecen en el
+ * mismo orden que los links .m3u8 en el HTML (ambos siguen el orden de
+ * la cuadrícula), y se empareja índice a índice para anclar el botón de
+ * descarga directamente sobre la miniatura correcta.
  */
 function scanAmazonShopVideos() {
   if (!window.location.hostname.includes("amazon.")) return;
   if (window.location.pathname.match(/\/(dp|gp\/product)\//i)) return; // ya cubierto por createButton
 
   const html = document.documentElement.innerHTML;
-  const matches = [
+  const urls = [
     ...new Set(html.match(/https:\/\/m\.media-amazon\.com\/images\/S\/vse-vms-transcoding-artifact[^"'\\]+\.m3u8/g) || []),
   ];
-  matches.forEach((url, i) => {
-    registerVideo(url, "", `Amazon video ${i + 1}`);
+  if (urls.length === 0) return;
+
+  const thumbs = document.querySelectorAll(
+    "[class*='video-item-hero-thumbnail-container'], [class*='video-item-hero-thumbnail']"
+  );
+
+  thumbs.forEach((thumb, i) => {
+    const url = urls[i];
+    if (!url || thumb.dataset.vidgrabAttached) return;
+    thumb.dataset.vidgrabAttached = "true";
+
+    const img = thumb.querySelector("img") || (thumb.tagName === "IMG" ? thumb : null);
+    registerVideo(url, img ? firstUsableImgSrc(img) : "", `Amazon video ${i + 1}`);
+    createFixedButton(thumb, () => url);
   });
 }
 
