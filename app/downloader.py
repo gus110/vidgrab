@@ -141,10 +141,14 @@ class DownloadManager:
         is_amazon = job.platform == "Amazon"
 
         # Amazon no trae un "autor/uploader" real (siempre sale "NA"), así
-        # que ahí se omite ese prefijo del nombre de archivo.
+        # que ahí se omite ese prefijo del nombre de archivo. En su lugar
+        # se agrega el ID corto del job: varios videos de una misma tienda
+        # suelen compartir el MISMO título exacto, y sin este ID sus
+        # archivos chocan/se sobrescriben entre sí al descargar varios casi
+        # al mismo tiempo (causaba errores intermitentes en lotes de Amazon).
         outtmpl = str(
             Path(self.download_dir) / (
-                "%(title).80s.%(ext)s" if is_amazon
+                f"%(title).70s [{job.id}].%(ext)s" if is_amazon
                 else "%(uploader)s - %(title).80s.%(ext)s"
             )
         )
