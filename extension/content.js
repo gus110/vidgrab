@@ -461,7 +461,15 @@ function scanForVideoLinks() {
     // leer `a.href` en el momento del clic en vez de guardar un valor fijo.
     if (!a.dataset.vidgrabAttached) {
       a.dataset.vidgrabAttached = "true";
-      createInlineButton(a, () => normalizeUrl(a.href) || normalized);
+      // Ancla el botón a la <img> visible dentro del link, no al <a>
+      // completo: en Pinterest el <a> de cada pin a veces envuelve un área
+      // más grande que la miniatura que realmente se ve (padding/gutter de
+      // la cuadrícula incluido), así que el botón terminaba dibujado
+      // encima de la tarjeta vecina aunque su link fuera el correcto.
+      const img = a.querySelector("img");
+      const positionHost = img || a;
+      if (positionHost !== a) positionHost.dataset.vidgrabAttached = "true";
+      createInlineButton(positionHost, () => normalizeUrl(a.href) || normalized);
     }
   });
 }
