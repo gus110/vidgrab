@@ -251,40 +251,38 @@ function scanForVideos() {
 }
 
 /**
- * Páginas de tienda de influencer en Amazon (amazon.com/shop/usuario)
- * muestran decenas de videos en cuadrícula, pero casi ninguno tiene un
- * <video> montado hasta que se reproduce (carga perezosa) ni un enlace
- * de página individual — solo existe un link directo al stream HLS,
- * embebido en el HTML de la página.
- *
- * Cada tarjeta SÍ tiene su miniatura estática con la clase
- * "video-item-hero-thumbnail-container" — se asume que aparecen en el
- * mismo orden que los links .m3u8 en el HTML (ambos siguen el orden de
- * la cuadrícula), y se empareja índice a índice para anclar el botón de
- * descarga directamente sobre la miniatura correcta.
+ * Páginas de tienda de influencer en Amazon (amazon.com/shop/usuario) y sus
+ * colecciones filtradas ("curation") muestran videos en cuadrícula sin
+ * <video> montado ni link de página individual. Cada tarjeta SÍ trae un
+ * atributo "data-video-item-click" con un JSON exacto: el link real del
+ * video (.m3u8), su miniatura y su título — mucho más confiable que tratar
+ * de emparejar por orden en la página (que falla al filtrar/navegar, ya
+ * que Amazon deja datos de vistas anteriores mezclados en el HTML).
  */
 function scanAmazonShopVideos() {
   if (!window.location.hostname.includes("amazon.")) return;
   if (window.location.pathname.match(/\/(dp|gp\/product)\//i)) return; // ya cubierto por createButton
 
-  const html = document.documentElement.innerHTML;
-  const urls = [
-    ...new Set(html.match(/https:\/\/m\.media-amazon\.com\/images\/S\/vse-vms-transcoding-artifact[^"'\\]+\.m3u8/g) || []),
-  ];
-  if (urls.length === 0) return;
+  document.querySelectorAll("[data-video-item-click]").forEach((el) => {
+    if (el.dataset.vidgrabAttached) return;
 
-  const thumbs = document.querySelectorAll(
-    "[class*='video-item-hero-thumbnail-container'], [class*='video-item-hero-thumbnail']"
-  );
+    let data;
+    try {
+      data = JSON.parse(el.getAttribute("data-video-item-click"));
+    } catch (e) {
+      return;
+    }
+    const params = data && data.lightboxParams;
+    const url = params && params.videoUrl;
+    if (!url) return;
 
-  thumbs.forEach((thumb, i) => {
-    const url = urls[i];
-    if (!url || thumb.dataset.vidgrabAttached) return;
-    thumb.dataset.vidgrabAttached = "true";
+    el.dataset.vidgrabAttached = "true";
+    registerVideo(url, params.imageUrl || "", params.title || "Amazon video");
 
-    const img = thumb.querySelector("img") || (thumb.tagName === "IMG" ? thumb : null);
-    registerVideo(url, img ? firstUsableImgSrc(img) : "", `Amazon video ${i + 1}`);
-    createFixedButton(thumb, () => url);
+    // El botón se ancla sobre la miniatura visible más cercana dentro de
+    // esta tarjeta (si no hay una, se usa el propio elemento con los datos).
+    const anchor = el.closest("[class*='thumbnail-container'], [class*='item-thumbnail']") || el;
+    createFixedButton(anchor, () => url);
   });
 }
 
