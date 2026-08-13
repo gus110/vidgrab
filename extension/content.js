@@ -297,6 +297,67 @@ function createFixedButton(anchorEl, resolveUrl) {
   }, 400);
 }
 
+/**
+ * Crea el botón "⬇ VidGrab" pegado DENTRO del propio elemento (miniatura o
+ * tarjeta), en vez de flotando por separado con position:fixed. Se usa para
+ * cuadrículas con muchos videos a la vez (Pinterest, explorar de
+ * Instagram/TikTok/Facebook, tienda de Amazon): con decenas de botones
+ * flotantes independientes reposicionándose cada 400ms, el reacomodo
+ * constante del layout (masonry) hacía que dos terminaran superpuestos en
+ * el mismo lugar de la pantalla — el usuario creía hacer clic en un video
+ * nuevo, pero en realidad tocaba el botón viejo que había quedado encima,
+ * y por eso siempre bajaba el mismo video. Al vivir dentro del propio
+ * elemento, el botón se mueve exactamente con su tarjeta, sin drift.
+ */
+function createInlineButton(anchorEl, resolveUrl) {
+  const btn = document.createElement("button");
+  btn.className = "vidgrab-download-btn";
+  btn.innerText = "⬇ VidGrab";
+  btn.title = "Download this video with VidGrab";
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = resolveUrl();
+    if (!url) {
+      btn.innerText = "⚠ No link found";
+      setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2000);
+      return;
+    }
+    btn.innerText = "Sending...";
+    let responded = false;
+    try {
+      chrome.runtime.sendMessage({ type: "SEND_URL", url }, (response) => {
+        responded = true;
+        if (chrome.runtime.lastError) {
+          btn.innerText = "⚠ Reload page";
+          setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2500);
+          return;
+        }
+        btn.innerText = response && response.ok ? "✅ Sent" : "⚠ Open VidGrab";
+        setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2000);
+      });
+    } catch (err) {
+      btn.innerText = "⚠ Reload page";
+      setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2500);
+      return;
+    }
+    setTimeout(() => {
+      if (!responded) btn.innerText = "⚠ Reload page";
+    }, 6000);
+  });
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "vidgrab-btn-wrapper";
+  wrapper.appendChild(btn);
+
+  const computedPosition = getComputedStyle(anchorEl).position;
+  if (computedPosition === "static") {
+    anchorEl.style.position = "relative";
+  }
+  anchorEl.appendChild(wrapper);
+}
+
 function createButton(targetVideo) {
   if (targetVideo.dataset.vidgrabAttached) return;
   targetVideo.dataset.vidgrabAttached = "true";
@@ -346,7 +407,7 @@ function scanAmazonShopVideos() {
     // El botón se ancla sobre la miniatura visible más cercana dentro de
     // esta tarjeta (si no hay una, se usa el propio elemento con los datos).
     const anchor = el.closest("[class*='thumbnail-container'], [class*='item-thumbnail']") || el;
-    createFixedButton(anchor, () => url);
+    createInlineButton(anchor, () => url);
   });
 }
 
@@ -391,7 +452,7 @@ function scanForVideoLinks() {
     // leer `a.href` en el momento del clic en vez de guardar un valor fijo.
     if (!a.dataset.vidgrabAttached) {
       a.dataset.vidgrabAttached = "true";
-      createFixedButton(a, () => normalizeUrl(a.href) || normalized);
+      createInlineButton(a, () => normalizeUrl(a.href) || normalized);
     }
   });
 }
