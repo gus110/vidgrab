@@ -197,6 +197,12 @@ class DownloadManager:
             # contenido que exige sesión).
             if not has_cookies:
                 ydl_opts["extractor_args"] = {"youtube": {"player_client": ["android"]}}
+        if job.platform == "TikTok":
+            # TikTok cambia seguido el formato de datos incrustados en su
+            # página web ("universal data for rehydration"), lo que rompe
+            # la extracción normal de yt-dlp con frecuencia. Forzar el modo
+            # de API (en vez de leer/parsear la página HTML) es más estable.
+            ydl_opts["extractor_args"] = {"tiktok": {"webpage_download": ["false"]}}
         if FFMPEG_LOCATION:
             ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
         if self.quality == "audio":
