@@ -18,6 +18,7 @@ SUPPORTED_DOMAINS = (
     "facebook.com", "fb.watch",
     "amazon.com", "amazon.co.uk", "amazon.de", "amazon.ca", "amazon.es",
     "youtube.com", "youtu.be",
+    "pinterest.com", "pinterest.fr", "pinterest.de", "pinterest.co.uk", "pin.it",
 )
 
 
@@ -53,6 +54,8 @@ def detect_platform(url: str) -> str:
         return "Amazon"
     if "youtube.com" in url or "youtu.be" in url:
         return "YouTube"
+    if "pinterest." in url or "pin.it" in url:
+        return "Pinterest"
     return "Unknown"
 
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "VidGrab — Instagram, TikTok, Facebook, Amazon & YouTube Downloader",
-  "version": "1.3.0",
-  "description": "Send Instagram, TikTok, Facebook, Amazon, and YouTube videos to the VidGrab app with one click to download them to your PC.",
+  "name": "VidGrab — Instagram, TikTok, Facebook, Amazon, YouTube & Pinterest Downloader",
+  "version": "1.4.0",
+  "description": "Send Instagram, TikTok, Facebook, Amazon, YouTube, and Pinterest videos to the VidGrab app with one click to download them to your PC.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -26,7 +26,8 @@
         "*://*.facebook.com/*", "*://fb.watch/*",
         "*://*.amazon.com/*", "*://*.amazon.co.uk/*", "*://*.amazon.de/*",
         "*://*.amazon.ca/*", "*://*.amazon.es/*",
-        "*://*.youtube.com/*", "*://youtu.be/*"
+        "*://*.youtube.com/*", "*://youtu.be/*",
+        "*://*.pinterest.com/*", "*://pin.it/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
@@ -46,6 +47,8 @@
     "*://*.amazon.ca/*",
     "*://*.amazon.es/*",
     "*://*.youtube.com/*",
-    "*://youtu.be/*"
+    "*://youtu.be/*",
+    "*://*.pinterest.com/*",
+    "*://pin.it/*"
   ]
 }

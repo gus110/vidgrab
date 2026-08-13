@@ -61,6 +61,16 @@ function normalizeYoutubeUrl(href) {
   return null;
 }
 
+function normalizePinterestUrl(href) {
+  try {
+    const u = new URL(href, window.location.origin);
+    if (u.hostname.includes("pin.it")) return u.href;
+    const match = u.pathname.match(/\/pin\/(\d+)/);
+    if (match) return `${u.origin}/pin/${match[1]}/`;
+  } catch (e) {}
+  return null;
+}
+
 function normalizeAmazonUrl(href) {
   try {
     const u = new URL(href, window.location.origin);
@@ -80,6 +90,9 @@ function normalizeUrl(href) {
   if (window.location.hostname.includes("amazon.")) return normalizeAmazonUrl(href);
   if (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be")) {
     return normalizeYoutubeUrl(href);
+  }
+  if (window.location.hostname.includes("pinterest.") || window.location.hostname.includes("pin.it")) {
+    return normalizePinterestUrl(href);
   }
   return null;
 }
@@ -180,6 +193,7 @@ function registerVideo(url, thumbnail, title) {
   else if (url.includes("facebook.com") || url.includes("fb.watch")) platform = "Facebook";
   else if (url.includes("amazon.")) platform = "Amazon";
   else if (url.includes("youtube.com") || url.includes("youtu.be")) platform = "YouTube";
+  else if (url.includes("pinterest.") || url.includes("pin.it")) platform = "Pinterest";
   const existing = detectedVideos.get(url);
   detectedVideos.set(url, {
     url,
@@ -324,6 +338,8 @@ function scanForVideoLinks() {
     selectors = "a[href*='/videos/'], a[href*='/watch/'], a[href*='/watch?'], a[href*='/reel/']";
   } else if (host.includes("youtube.com") || host.includes("youtu.be")) {
     selectors = "a[href*='watch?v='], a[href*='/shorts/']";
+  } else if (host.includes("pinterest.") || host.includes("pin.it")) {
+    selectors = "a[href*='/pin/']";
   }
 
   document.querySelectorAll(selectors).forEach((a) => {
