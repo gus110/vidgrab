@@ -351,9 +351,16 @@ function scanForVideoLinks() {
     // cuadrícula (antes solo se listaba en el popup sin marca visual sobre
     // el video — pasaba en Pinterest, y en general en cualquier cuadrícula
     // donde el video aún no tiene un <video> montado).
+    //
+    // IMPORTANTE: Pinterest (y otros feeds infinitos) reciclan el mismo
+    // elemento <a> para pines distintos al hacer scroll (igual que TikTok
+    // recicla su <video>). Si el link a enviar se "congela" al crear el
+    // botón, terminaba descargando el video viejo que tenía ese elemento
+    // reciclado la primera vez, no el que se ve ahora. Por eso se vuelve a
+    // leer `a.href` en el momento del clic en vez de guardar un valor fijo.
     if (!a.dataset.vidgrabAttached) {
       a.dataset.vidgrabAttached = "true";
-      createFixedButton(a, () => normalized);
+      createFixedButton(a, () => normalizeUrl(a.href) || normalized);
     }
   });
 }
