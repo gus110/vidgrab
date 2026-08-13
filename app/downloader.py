@@ -16,6 +16,7 @@ import yt_dlp
 SUPPORTED_DOMAINS = (
     "instagram.com", "tiktok.com", "vm.tiktok.com", "vt.tiktok.com",
     "facebook.com", "fb.watch",
+    "amazon.com", "amazon.co.uk", "amazon.de", "amazon.ca", "amazon.es",
 )
 
 
@@ -47,6 +48,8 @@ def detect_platform(url: str) -> str:
         return "Instagram"
     if "facebook" in url or "fb.watch" in url:
         return "Facebook"
+    if "amazon." in url:
+        return "Amazon"
     return "Unknown"
 
 
@@ -135,10 +138,23 @@ class DownloadManager:
                 job.progress = 1.0
                 on_update(job)
 
-        outtmpl = str(Path(self.download_dir) / "%(uploader)s - %(title).80s.%(ext)s")
+        is_amazon = job.platform == "Amazon"
+
+        # Amazon no trae un "autor/uploader" real (siempre sale "NA"), así
+        # que ahí se omite ese prefijo del nombre de archivo.
+        outtmpl = str(
+            Path(self.download_dir) / (
+                "%(title).80s.%(ext)s" if is_amazon
+                else "%(uploader)s - %(title).80s.%(ext)s"
+            )
+        )
 
         ydl_opts = {
-            "format": self._format_selector() if job_quality_is_video(self.quality) else "bestaudio/best",
+            # Amazon sirve el video como HLS (.m3u8) con un único formato
+            # combinado; el selector bestvideo+bestaudio no aplica ahí.
+            "format": "best" if is_amazon else (
+                self._format_selector() if job_quality_is_video(self.quality) else "bestaudio/best"
+            ),
             "outtmpl": outtmpl,
             "progress_hooks": [progress_hook],
             "noplaylist": True,
@@ -148,6 +164,11 @@ class DownloadManager:
             "restrictfilenames": False,
             "windowsfilenames": True,
         }
+        if is_amazon:
+            # Fuerza a FFmpeg a descargar/remuxear el HLS en vez del
+            # descargador nativo, que en Amazon solo bajaba el índice
+            # .m3u8 sin los fragmentos de video reales.
+            ydl_opts["hls_prefer_native"] = False
         if FFMPEG_LOCATION:
             ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
         if self.quality == "audio":
@@ -160,6 +181,7 @@ class DownloadManager:
                 info = ydl.extract_info(job.url, download=True)
                 job.title = info.get("title", job.url)
                 job.filepath = ydl.prepare_filename(info)
+                job.filepath = _fix_hls_extension(job.filepath)
                 job.status = "completado"
                 job.progress = 1.0
 
@@ -182,6 +204,50 @@ class DownloadManager:
 
 def job_quality_is_video(quality: str) -> bool:
     return quality != "audio"
+
+
+_BOGUS_EXTENSIONS = {".m3u8", ".na", ""}
+
+
+def _fix_hls_extension(filepath: str) -> str:
+    """Fuentes HLS (como Amazon) a veces reportan un nombre de archivo con
+    extensión inválida (.m3u8, .NA) aunque el contenido real ya sea un
+    .mp4 válido (FFmpeg remuxeó el stream) — y a veces ese nombre ni
+    siquiera coincide exactamente con el archivo que quedó en disco. Si
+    detectamos una extensión "rara", buscamos el archivo real por su
+    nombre base y lo renombramos a .mp4."""
+    path = Path(filepath)
+    if path.suffix.lower() not in _BOGUS_EXTENSIONS:
+        return filepath
+
+    candidate = path if path.exists() else None
+    if candidate is None:
+        # El nombre reportado no coincide exactamente con el real (yt-dlp
+        # a veces usa metadata distinta para el archivo final que para el
+        # nombre "oficial" en streams HLS). Busca por coincidencia parcial
+        # del inicio del nombre, y si no hay match, cae al archivo más
+        # reciente de la carpeta (recién escrito por esta misma descarga).
+        prefix = path.stem[:20].lower()
+        try:
+            all_files = [p for p in path.parent.glob("*.*") if p.is_file()]
+            all_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        except OSError:
+            all_files = []
+        candidate = next(
+            (p for p in all_files if p.stem.lower().startswith(prefix)), None
+        ) or (all_files[0] if all_files else None)
+
+    if not candidate or not candidate.exists():
+        return filepath
+
+    new_path = candidate.with_suffix(".mp4")
+    try:
+        if new_path.exists() and new_path != candidate:
+            new_path.unlink()
+        candidate.rename(new_path)
+        return str(new_path)
+    except OSError:
+        return str(candidate)
 
 
 def _apply_sharpen_filter(filepath: str) -> None:

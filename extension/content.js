@@ -46,12 +46,23 @@ function normalizeFacebookUrl(href) {
   return null;
 }
 
+function normalizeAmazonUrl(href) {
+  try {
+    const u = new URL(href, window.location.origin);
+    // /dp/ASIN o /gp/product/ASIN -> URL canónica que yt-dlp reconoce.
+    const match = u.pathname.match(/\/(?:[^/]+\/)?(dp|gp\/product)\/([A-Z0-9]{10})/i);
+    if (match) return `${u.origin}/dp/${match[2]}/`;
+  } catch (e) {}
+  return null;
+}
+
 function normalizeUrl(href) {
   if (window.location.hostname.includes("instagram.com")) return normalizeInstagramUrl(href);
   if (window.location.hostname.includes("tiktok.com")) return normalizeTiktokUrl(href);
   if (window.location.hostname.includes("facebook.com") || window.location.hostname.includes("fb.watch")) {
     return normalizeFacebookUrl(href);
   }
+  if (window.location.hostname.includes("amazon.")) return normalizeAmazonUrl(href);
   return null;
 }
 
@@ -149,6 +160,7 @@ function registerVideo(url, thumbnail, title) {
   let platform = "Instagram";
   if (url.includes("tiktok.com")) platform = "TikTok";
   else if (url.includes("facebook.com") || url.includes("fb.watch")) platform = "Facebook";
+  else if (url.includes("amazon.")) platform = "Amazon";
   const existing = detectedVideos.get(url);
   detectedVideos.set(url, {
     url,
@@ -236,10 +248,16 @@ function scanForVideos() {
  * ícono de reproducción. Las detectamos igual para poder listarlas.
  */
 function scanForVideoLinks() {
+  const host = window.location.hostname;
+  // Amazon: cada página de producto es un único recurso descargable
+  // (el reproductor se detecta como <video> vía scanForVideos, no como
+  // enlaces sueltos), así que no hay nada que escanear aquí.
+  if (host.includes("amazon.")) return;
+
   let selectors = "a[href*='/reel/'], a[href*='/p/']"; // Instagram default
-  if (window.location.hostname.includes("tiktok.com")) {
+  if (host.includes("tiktok.com")) {
     selectors = "a[href*='/video/']";
-  } else if (window.location.hostname.includes("facebook.com") || window.location.hostname.includes("fb.watch")) {
+  } else if (host.includes("facebook.com") || host.includes("fb.watch")) {
     selectors = "a[href*='/videos/'], a[href*='/watch/'], a[href*='/watch?'], a[href*='/reel/']";
   }
 
