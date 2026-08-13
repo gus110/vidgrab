@@ -472,15 +472,15 @@ function scanForVideoLinks() {
     // leer `a.href` en el momento del clic en vez de guardar un valor fijo.
     if (!a.dataset.vidgrabAttached) {
       a.dataset.vidgrabAttached = "true";
-      // Ancla el botón a la <img> visible dentro del link, no al <a>
-      // completo: en Pinterest el <a> de cada pin a veces envuelve un área
-      // más grande que la miniatura que realmente se ve (padding/gutter de
-      // la cuadrícula incluido), así que el botón terminaba dibujado
-      // encima de la tarjeta vecina aunque su link fuera el correcto.
+      // Ancla el botón a la posición real de la <img> visible dentro del
+      // link (no al <a> completo, que a veces envuelve un área más grande
+      // que la miniatura y hacía que el botón cayera sobre la tarjeta
+      // vecina) usando position:fixed calculado por su propio rectángulo
+      // — NUNCA insertando el botón DENTRO de la <img>, porque los
+      // navegadores no dibujan hijos dentro de elementos <img> (por eso el
+      // botón dejó de verse en el intento anterior).
       const img = a.querySelector("img");
-      const positionHost = img || a;
-      if (positionHost !== a) positionHost.dataset.vidgrabAttached = "true";
-      createInlineButton(positionHost, () => normalizeUrl(a.href) || normalized);
+      createFixedButton(img || a, () => normalizeUrl(a.href) || normalized);
     }
   });
 }
