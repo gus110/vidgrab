@@ -344,8 +344,16 @@ function scanForVideoLinks() {
 
   document.querySelectorAll(selectors).forEach((a) => {
     const normalized = normalizeUrl(a.href);
-    if (normalized) {
-      registerVideo(normalized, findThumbnailIn(a, null), findTitleIn(a, normalized));
+    if (!normalized) return;
+    registerVideo(normalized, findThumbnailIn(a, null), findTitleIn(a, normalized));
+
+    // Ancla el botón flotante directamente sobre esta miniatura de la
+    // cuadrícula (antes solo se listaba en el popup sin marca visual sobre
+    // el video — pasaba en Pinterest, y en general en cualquier cuadrícula
+    // donde el video aún no tiene un <video> montado).
+    if (!a.dataset.vidgrabAttached) {
+      a.dataset.vidgrabAttached = "true";
+      createFixedButton(a, () => normalized);
     }
   });
 }
