@@ -378,7 +378,18 @@ function createButton(targetVideo) {
 }
 
 function scanForVideos() {
-  document.querySelectorAll("video").forEach((v) => createButton(v));
+  // En Pinterest, cada miniatura ya trae su propio <a href="/pin/..."> y
+  // eso es lo único confiable para saber a qué pin corresponde. Los <video>
+  // de vista previa que Pinterest reproduce en la cuadrícula NO están
+  // dentro de un contenedor que nuestra búsqueda genérica (pensada para
+  // Instagram/TikTok) sepa asociar correctamente a su pin — terminaba
+  // cayendo al link de la página actual (el pin principal abierto) para
+  // CUALQUIER video, creando además un segundo botón invisible superpuesto
+  // al correcto. Por eso aquí se salta por completo la detección basada en
+  // <video> y se deja solo la basada en <a href> (scanForVideoLinks).
+  if (!window.location.hostname.includes("pinterest.") && !window.location.hostname.includes("pin.it")) {
+    document.querySelectorAll("video").forEach((v) => createButton(v));
+  }
   scanForVideoLinks();
   scanAmazonShopVideos();
 }
