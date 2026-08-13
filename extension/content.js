@@ -46,6 +46,21 @@ function normalizeFacebookUrl(href) {
   return null;
 }
 
+function normalizeYoutubeUrl(href) {
+  try {
+    const u = new URL(href, window.location.origin);
+    if (u.hostname.includes("youtu.be")) {
+      const id = u.pathname.slice(1);
+      if (id) return `https://youtu.be/${id}`;
+    }
+    const v = u.searchParams.get("v");
+    if (v) return `https://www.youtube.com/watch?v=${v}`;
+    const shorts = u.pathname.match(/\/shorts\/([^/?]+)/);
+    if (shorts) return `https://www.youtube.com/shorts/${shorts[1]}`;
+  } catch (e) {}
+  return null;
+}
+
 function normalizeAmazonUrl(href) {
   try {
     const u = new URL(href, window.location.origin);
@@ -63,6 +78,9 @@ function normalizeUrl(href) {
     return normalizeFacebookUrl(href);
   }
   if (window.location.hostname.includes("amazon.")) return normalizeAmazonUrl(href);
+  if (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be")) {
+    return normalizeYoutubeUrl(href);
+  }
   return null;
 }
 
@@ -161,6 +179,7 @@ function registerVideo(url, thumbnail, title) {
   if (url.includes("tiktok.com")) platform = "TikTok";
   else if (url.includes("facebook.com") || url.includes("fb.watch")) platform = "Facebook";
   else if (url.includes("amazon.")) platform = "Amazon";
+  else if (url.includes("youtube.com") || url.includes("youtu.be")) platform = "YouTube";
   const existing = detectedVideos.get(url);
   detectedVideos.set(url, {
     url,
@@ -303,6 +322,8 @@ function scanForVideoLinks() {
     selectors = "a[href*='/video/']";
   } else if (host.includes("facebook.com") || host.includes("fb.watch")) {
     selectors = "a[href*='/videos/'], a[href*='/watch/'], a[href*='/watch?'], a[href*='/reel/']";
+  } else if (host.includes("youtube.com") || host.includes("youtu.be")) {
+    selectors = "a[href*='watch?v='], a[href*='/shorts/']";
   }
 
   document.querySelectorAll(selectors).forEach((a) => {

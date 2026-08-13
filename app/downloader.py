@@ -17,6 +17,7 @@ SUPPORTED_DOMAINS = (
     "instagram.com", "tiktok.com", "vm.tiktok.com", "vt.tiktok.com",
     "facebook.com", "fb.watch",
     "amazon.com", "amazon.co.uk", "amazon.de", "amazon.ca", "amazon.es",
+    "youtube.com", "youtu.be",
 )
 
 
@@ -50,6 +51,8 @@ def detect_platform(url: str) -> str:
         return "Facebook"
     if "amazon." in url:
         return "Amazon"
+    if "youtube.com" in url or "youtu.be" in url:
+        return "YouTube"
     return "Unknown"
 
 
