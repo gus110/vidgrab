@@ -567,7 +567,15 @@ def _acquire_single_instance_lock() -> bool:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     lock_path = CONFIG_DIR / ".vidgrab.lock"
     try:
-        _lock_file = open(lock_path, "w")
+        # IMPORTANTE: abrir en modo "w" trunca el archivo cada vez, lo que
+        # rompía el bloqueo por rango de bytes cuando dos copias arrancaban
+        # casi al mismo tiempo (cada una truncaba el archivo de la otra a
+        # mitad del proceso, dejando el candado en un estado inconsistente
+        # y permitiendo que ambas se creyeran "la única"). "r+b"/"a+b" no
+        # truncan: si el archivo no existe, se crea una vez sin tocarlo después.
+        if not lock_path.exists():
+            lock_path.write_bytes(b"x")
+        _lock_file = open(lock_path, "r+b")
         msvcrt.locking(_lock_file.fileno(), msvcrt.LK_NBLCK, 1)
         return True
     except OSError:
