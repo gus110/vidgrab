@@ -326,6 +326,7 @@ function createInlineButton(anchorEl, resolveUrl) {
     e.preventDefault();
     e.stopPropagation();
     const url = resolveUrl();
+    console.log("[VidGrab click]", "sending:", url, "| anchor element:", anchorEl);
     if (!url) {
       btn.innerText = "⚠ No link found";
       setTimeout(() => (btn.innerText = "⬇ VidGrab"), 2000);
@@ -444,6 +445,7 @@ function scanForVideoLinks() {
   document.querySelectorAll(selectors).forEach((a) => {
     const normalized = normalizeUrl(a.href);
     if (!normalized) return;
+    console.log("[VidGrab detect]", a.href, "->", normalized, a);
     registerVideo(normalized, findThumbnailIn(a, null), findTitleIn(a, normalized));
 
     // Ancla el botón flotante directamente sobre esta miniatura de la
