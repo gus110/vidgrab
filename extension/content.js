@@ -240,6 +240,30 @@ function createButton(targetVideo) {
 function scanForVideos() {
   document.querySelectorAll("video").forEach((v) => createButton(v));
   scanForVideoLinks();
+  scanAmazonShopVideos();
+}
+
+/**
+ * Páginas de tienda de influencer en Amazon (amazon.com/shop/usuario)
+ * muestran decenas de videos en cuadrícula, pero casi ninguno tiene un
+ * <video> montado hasta que se reproduce (carga perezosa) ni un enlace
+ * de página individual — solo existe un link directo al stream HLS,
+ * embebido en el HTML de la página. Los detectamos ahí directamente.
+ * No se puede emparejar cada uno con su miniatura exacta de forma
+ * confiable (Amazon no expone esa relación en el marcado), así que se
+ * listan de forma genérica.
+ */
+function scanAmazonShopVideos() {
+  if (!window.location.hostname.includes("amazon.")) return;
+  if (window.location.pathname.match(/\/(dp|gp\/product)\//i)) return; // ya cubierto por createButton
+
+  const html = document.documentElement.innerHTML;
+  const matches = [
+    ...new Set(html.match(/https:\/\/m\.media-amazon\.com\/images\/S\/vse-vms-transcoding-artifact[^"'\\]+\.m3u8/g) || []),
+  ];
+  matches.forEach((url, i) => {
+    registerVideo(url, "", `Amazon video ${i + 1}`);
+  });
 }
 
 /**
