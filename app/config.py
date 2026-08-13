@@ -27,6 +27,7 @@ DEFAULTS = {
     "daily_count": 0,
     "daily_date": "",           # fecha (YYYY-MM-DD) del contador actual
     "sharpen": False,           # aplica un filtro de nitidez tras descargar
+    "youtube_cookies_file": "", # ruta a un cookies.txt exportado (para YouTube)
 }
 
 

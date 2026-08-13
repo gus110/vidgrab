@@ -171,7 +171,8 @@ class VidGrabApp(ctk.CTk):
         self.configure(fg_color=BG_MAIN)
 
         self.manager = DownloadManager(
-            self.cfg["download_dir"], self.cfg["quality"], self.cfg.get("sharpen", False)
+            self.cfg["download_dir"], self.cfg["quality"], self.cfg.get("sharpen", False),
+            self.cfg.get("youtube_cookies_file", ""),
         )
         self.rows: dict[str, JobRow] = {}
 
@@ -394,13 +395,15 @@ class VidGrabApp(ctk.CTk):
         self.manager.set_download_dir(self.cfg["download_dir"])
         self.manager.set_quality(self.cfg["quality"])
         self.quality_var.set(self.cfg["quality"])
+        if "youtube_cookies_file" in new_cfg:
+            self.manager.set_youtube_cookies_file(new_cfg["youtube_cookies_file"])
 
 
 class SettingsDialog(ctk.CTkToplevel):
     def __init__(self, master, cfg: dict, on_save):
         super().__init__(master)
         self.title("VidGrab Settings")
-        self.geometry("460x260")
+        self.geometry("460x400")
         self.resizable(False, False)
         self.configure(fg_color=BG_MAIN)
         self.on_save = on_save
@@ -426,6 +429,23 @@ class SettingsDialog(ctk.CTkToplevel):
             fg_color=ACCENT, hover_color=ACCENT_HOVER,
         ).pack(anchor="w", padx=20, pady=16)
 
+        ctk.CTkLabel(self, text="YouTube cookies (fixes \"Sign in to confirm\" errors)", text_color=TEXT_MUTED).pack(
+            anchor="w", padx=20, pady=(4, 4)
+        )
+        cookies_row = ctk.CTkFrame(self, fg_color="transparent")
+        cookies_row.pack(fill="x", padx=20)
+        self.cookies_path_var = ctk.StringVar(
+            value=cfg.get("youtube_cookies_file") or "Not set — YouTube downloads may fail"
+        )
+        ctk.CTkLabel(
+            cookies_row, textvariable=self.cookies_path_var, text_color=TEXT_MUTED,
+            font=("Segoe UI", 10), anchor="w",
+        ).pack(side="left", fill="x", expand=True)
+        ctk.CTkButton(
+            cookies_row, text="Import cookies.txt", width=140, command=self._choose_cookies_file,
+            fg_color="#3A3A4E", hover_color="#4A4A5E",
+        ).pack(side="right")
+
         ctk.CTkButton(
             self, text="Save", fg_color=ACCENT, hover_color=ACCENT_HOVER,
             command=self._save,
@@ -437,11 +457,22 @@ class SettingsDialog(ctk.CTkToplevel):
             self.path_entry.delete(0, "end")
             self.path_entry.insert(0, chosen)
 
+    def _choose_cookies_file(self):
+        chosen = filedialog.askopenfilename(
+            title="Select cookies.txt exported from your browser",
+            filetypes=[("Cookies text file", "*.txt"), ("All files", "*.*")],
+        )
+        if chosen:
+            self._new_cookies_file = chosen
+            self.cookies_path_var.set(chosen)
+
     def _save(self):
         new_cfg = {
             "download_dir": self.path_entry.get().strip() or self.cfg["download_dir"],
             "notify_on_complete": self.notify_var.get(),
         }
+        if hasattr(self, "_new_cookies_file"):
+            new_cfg["youtube_cookies_file"] = self._new_cookies_file
         self.on_save(new_cfg)
         self.destroy()
 

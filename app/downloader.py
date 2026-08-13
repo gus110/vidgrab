@@ -75,10 +75,11 @@ class DownloadJob:
 class DownloadManager:
     """Gestiona la cola de descargas en hilos separados para no bloquear la UI."""
 
-    def __init__(self, download_dir: str, quality: str = "best", sharpen: bool = False):
+    def __init__(self, download_dir: str, quality: str = "best", sharpen: bool = False, youtube_cookies_file: str = ""):
         self.download_dir = download_dir
         self.quality = quality
         self.sharpen = sharpen
+        self.youtube_cookies_file = youtube_cookies_file
         self.jobs: dict[str, DownloadJob] = {}
         self._lock = threading.Lock()
 
@@ -90,6 +91,9 @@ class DownloadManager:
 
     def set_sharpen(self, enabled: bool):
         self.sharpen = enabled
+
+    def set_youtube_cookies_file(self, path: str):
+        self.youtube_cookies_file = path
 
     def _format_selector(self) -> str:
         mapping = {
@@ -176,6 +180,13 @@ class DownloadManager:
             # descargador nativo, que en Amazon solo bajaba el índice
             # .m3u8 sin los fragmentos de video reales.
             ydl_opts["hls_prefer_native"] = False
+        if job.platform == "YouTube" and self.youtube_cookies_file and Path(self.youtube_cookies_file).exists():
+            # YouTube exige verificar que no eres un bot para la mayoría de
+            # videos; sin cookies de una sesión real, casi todas las
+            # descargas fallan. Se usa un cookies.txt exportado a mano
+            # (más confiable en Windows que leer la base de datos viva del
+            # navegador, que suele estar bloqueada mientras Chrome corre).
+            ydl_opts["cookiefile"] = self.youtube_cookies_file
         if FFMPEG_LOCATION:
             ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
         if self.quality == "audio":
