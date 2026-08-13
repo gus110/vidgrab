@@ -220,6 +220,7 @@ class DownloadManager:
         except Exception as exc:  # noqa: BLE001
             job.status = "error"
             job.error = _friendly_error(str(exc))
+            _log_error(job.url, exc)
         finally:
             on_update(job)
 
@@ -321,6 +322,25 @@ def _human_eta(seconds) -> str:
         return ""
     m, s = divmod(int(seconds), 60)
     return f"{m}m {s}s" if m else f"{s}s"
+
+
+def _log_error(url: str, exc: Exception) -> None:
+    """Guarda el error real (con traceback) en %APPDATA%\\VidGrab\\debug.log,
+    para poder diagnosticar fallas dentro del .exe compilado sin adivinar."""
+    try:
+        import traceback
+        from datetime import datetime
+        from config import CONFIG_DIR
+
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        log_path = CONFIG_DIR / "debug.log"
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"\n--- {datetime.now().isoformat()} ---\n")
+            f.write(f"URL: {url}\n")
+            f.write(f"{type(exc).__name__}: {exc}\n")
+            f.write(traceback.format_exc())
+    except Exception:
+        pass
 
 
 def _friendly_error(msg: str) -> str:
