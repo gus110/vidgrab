@@ -313,7 +313,14 @@ function createInlineButton(anchorEl, resolveUrl) {
   const btn = document.createElement("button");
   btn.className = "vidgrab-download-btn";
   btn.innerText = "⬇ VidGrab";
-  btn.title = "Download this video with VidGrab";
+  // El tooltip muestra el link exacto detectado para ESTE botón — sirve
+  // para diagnosticar si dos botones distintos resuelven, por error, a la
+  // misma URL (bug de detección) en vez de a URLs distintas (bug en otra
+  // parte). Se recalcula en cada hover para reflejar el estado más actual.
+  btn.addEventListener("mouseenter", () => {
+    const u = resolveUrl();
+    btn.title = u ? `Download: ${u}` : "No link detected";
+  });
 
   btn.addEventListener("click", (e) => {
     e.preventDefault();
