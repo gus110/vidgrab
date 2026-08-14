@@ -464,9 +464,26 @@ function scanForVideoLinks() {
     selectors = "a[href*='/pin/']";
   }
 
+  const isPinterest = host.includes("pinterest.") || host.includes("pin.it");
+
   document.querySelectorAll(selectors).forEach((a) => {
     const normalized = normalizeUrl(a.href);
     if (!normalized) return;
+
+    // Pinterest mezcla fotos y videos bajo el mismo patrón de URL /pin/,
+    // a diferencia de las otras plataformas donde el selector ya implica
+    // que es video. Sin este filtro, se le ponía botón de descarga a CADA
+    // pin (incluyendo fotos), y al hacer clic fallaba con "No video
+    // formats found" porque simplemente no había ningún video ahí. Se
+    // considera "pin de video" si trae un <video> montado o un badge de
+    // duración tipo "0:12" visible en la tarjeta (lo que Pinterest muestra
+    // sobre las miniaturas de video, no sobre las de foto).
+    if (isPinterest) {
+      const hasVideoTag = !!a.querySelector("video");
+      const hasDurationBadge = /^\d+:\d{2}$/.test((a.innerText || "").trim().split("\n")[0]);
+      if (!hasVideoTag && !hasDurationBadge) return;
+    }
+
     console.log("[VidGrab detect]", a.href, "->", normalized, a);
     registerVideo(normalized, findThumbnailIn(a, null), findTitleIn(a, normalized));
 
