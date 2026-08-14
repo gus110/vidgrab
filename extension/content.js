@@ -210,7 +210,7 @@ function registerVideo(url, thumbnail, title) {
  * montado (tarjetas de tienda de Amazon) — `resolveUrl` es una función que
  * devuelve la URL a enviar, evaluada en el momento del clic.
  */
-function createFixedButton(anchorEl, resolveUrl) {
+function createFixedButton(anchorEl, resolveUrl, getRectEl) {
   const btn = document.createElement("button");
   btn.className = "vidgrab-download-btn";
   btn.innerText = "⬇ VidGrab";
@@ -268,7 +268,13 @@ function createFixedButton(anchorEl, resolveUrl) {
   document.body.appendChild(wrapper);
 
   const reposition = () => {
-    const rect = anchorEl.getBoundingClientRect();
+    // El elemento que da la posición puede cambiar con el tiempo (ej. en
+    // Pinterest, al pasar el mouse la <img> estática se reemplaza por un
+    // <video> reproduciéndose) — se recalcula cuál usar en cada momento en
+    // vez de asumir que siempre es el mismo nodo, para no perder el rastro
+    // ni ocultar el botón por error cuando eso pasa.
+    const rectEl = (getRectEl && getRectEl()) || anchorEl;
+    const rect = rectEl.getBoundingClientRect();
     const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
     if (!visible) {
       wrapper.style.display = "none";
@@ -283,6 +289,11 @@ function createFixedButton(anchorEl, resolveUrl) {
   window.addEventListener("scroll", reposition, true);
   window.addEventListener("resize", reposition);
   const repositionInterval = setInterval(() => {
+    // Se usa el elemento "estable" (anchorEl, normalmente el <a> del pin
+    // completo) para decidir si la tarjeta sigue existiendo — el elemento
+    // usado solo para calcular la posición (img/video interno) puede
+    // desaparecer y reaparecer libremente sin que eso signifique que hay
+    // que borrar el botón.
     if (!document.body.contains(anchorEl)) {
       clearInterval(repositionInterval);
       wrapper.remove();
@@ -472,15 +483,19 @@ function scanForVideoLinks() {
     // leer `a.href` en el momento del clic en vez de guardar un valor fijo.
     if (!a.dataset.vidgrabAttached) {
       a.dataset.vidgrabAttached = "true";
-      // Ancla el botón a la posición real de la <img> visible dentro del
-      // link (no al <a> completo, que a veces envuelve un área más grande
-      // que la miniatura y hacía que el botón cayera sobre la tarjeta
-      // vecina) usando position:fixed calculado por su propio rectángulo
-      // — NUNCA insertando el botón DENTRO de la <img>, porque los
-      // navegadores no dibujan hijos dentro de elementos <img> (por eso el
-      // botón dejó de verse en el intento anterior).
-      const img = a.querySelector("img");
-      createFixedButton(img || a, () => normalizeUrl(a.href) || normalized);
+      // Se rastrea la EXISTENCIA usando `a` (el link, siempre estable),
+      // pero la POSICIÓN se calcula sobre lo que haya visible adentro en
+      // cada momento (img o video) — en Pinterest, al pasar el mouse la
+      // miniatura estática se reemplaza por un <video> reproduciéndose;
+      // si solo mirábamos la <img> original, "desaparecía" y ocultábamos
+      // el botón por error. NUNCA se inserta el botón DENTRO de la <img>
+      // (los navegadores no dibujan hijos de elementos <img>), se usa
+      // position:fixed calculado por su rectángulo en su lugar.
+      createFixedButton(
+        a,
+        () => normalizeUrl(a.href) || normalized,
+        () => a.querySelector("img") || a.querySelector("video") || a
+      );
     }
   });
 }
