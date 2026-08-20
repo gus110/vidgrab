@@ -5,11 +5,22 @@
 
 const detectedVideos = new Map(); // url -> { url, platform, label }
 
+// Rutas de Instagram que TIENEN la forma /reel/xxx/ o /p/xxx/ pero NO son
+// una publicación real (el "xxx" es una palabra reservada, no un ID) —
+// sin este filtro, un link como /reels/audio/ (el "audio original" que
+// aparece bajo cada reel) se confundía con el reel mismo, y la app
+// intentaba descargar esa página en vez del video real.
+const INSTAGRAM_RESERVED_SEGMENTS = new Set([
+  "audio", "explore", "tagged", "saved", "liked_by", "comments", "embed",
+]);
+
 function normalizeInstagramUrl(href) {
   try {
     const u = new URL(href, window.location.origin);
-    const match = u.pathname.match(/\/(p|reel|reels)\/[^/]+/);
-    if (match) return `https://www.instagram.com${match[0]}/`;
+    const match = u.pathname.match(/\/(p|reel|reels)\/([^/]+)/);
+    if (match && !INSTAGRAM_RESERVED_SEGMENTS.has(match[2].toLowerCase())) {
+      return `https://www.instagram.com${match[0]}/`;
+    }
   } catch (e) {}
   return null;
 }
